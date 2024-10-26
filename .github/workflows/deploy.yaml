@@ -1,6 +1,14 @@
 name: Deploy to Environment
 
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Input a version (e.g., v1.0.0)'
+        required: false
 
 jobs:
   detect_changes:
@@ -17,13 +25,13 @@ jobs:
         id: set_env
         run: |
           changed_envs=""
-          if git diff --name-only @~..@ | grep "state/dev.yaml"; then
+          if [[ -z "$(git diff --name-only @~..@ | grep 'state/dev.yaml')" ]]; then
               changed_envs="dev,$changed_envs"
           fi
-          if git diff --name-only @~..@ | grep "state/stage.yaml"; then
+          if [[ -z "$(git diff --name-only @~..@ | grep 'state/stage.yaml')" ]]; then
               changed_envs="stage,$changed_envs"
           fi
-          if git diff --name-only @~..@ | grep "state/prod.yaml"; then
+          if [[ -z "$(git diff --name-only @~..@ | grep 'state/prod.yaml')" ]]; then
               changed_envs="prod,$changed_envs"
           fi
 
@@ -39,4 +47,19 @@ jobs:
       matrix:
         environment: ${{ fromJson(needs.detect_changes.outputs.changed_envs) }}
     steps:
-      - run: echo "Matrix - Environment ${{ matrix.environment }}"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Env Vars
+        run: |
+          ENV_FILE="state/${{ matrix.environment }}.yaml"
+
+          if ; then
+          fi
+
+          echo "ARTIFACT_VERSION=$(yq e '.artifact.version' $ENV_FILE)" >> $GITHUB_ENV
+          echo "ARTIFACT_REPO=$(yq e '.artifact.repo' $ENV_FILE)" >> $GITHUB_ENV
+          echo "DEPLOY_TARGET=$(yq e '.environment.deploy_target' $ENV_FILE)" >> $GITHUB_ENV
+
+      - name: Deploy
+        run: echo "Deploying version $ARTIFACT_VERSION to ${{ matrix.environment }} environment"
