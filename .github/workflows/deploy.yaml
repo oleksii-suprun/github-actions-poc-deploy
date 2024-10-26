@@ -16,13 +16,23 @@ jobs:
         run: |
           changed_envs=""
           if git diff --name-only HEAD^ HEAD | grep -q "state/dev.yaml"; then
-              changed_envs="dev $changed_envs"
+              changed_envs="dev,$changed_envs"
           fi
           if git diff --name-only HEAD^ HEAD | grep -q "state/stage.yaml"; then
-              changed_envs="stage $changed_envs"
+              changed_envs="stage,$changed_envs"
           fi
           if git diff --name-only HEAD^ HEAD | grep -q "state/prod.yaml"; then
-              changed_envs="prod $changed_envs"
+              changed_envs="prod,$changed_envs"
           fi
-          echo "Changed environments: $changed_envs"
-          echo "env_list=$changed_envs" >> "$GITHUB_OUTPUT"
+          echo "Changed environments: [$changed_envs"]
+          echo "env_list=$(echo $changed_envs | jq -c 'split(" ")')" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: ${{ needs.detect_changes.outputs.changed_envs != '[]' && needs.detect_changes.outputs.changed_envs != '' }}
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.detect_changes.outputs.changed_envs) }}
+    steps:
+      - run: echo "Matrix - Environment ${{ matrix.environment }}"
