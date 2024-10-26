@@ -1,0 +1,28 @@
+name: Deploy to Environment
+
+on: [push]
+
+jobs:
+  detect_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_envs: ${{ steps.set_env.outputs.env_list }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check which environment files have changed
+        id: set_env
+        run: |
+          changed_envs=""
+          if git diff --name-only HEAD^ HEAD | grep -q "state/dev.yaml"; then
+              changed_envs="dev $changed_envs"
+          fi
+          if git diff --name-only HEAD^ HEAD | grep -q "state/stage.yaml"; then
+              changed_envs="stage $changed_envs"
+          fi
+          if git diff --name-only HEAD^ HEAD | grep -q "state/prod.yaml"; then
+              changed_envs="prod $changed_envs"
+          fi
+          echo "Changed environments: $changed_envs"
+          echo "::set-output name=env_list::$changed_envs"

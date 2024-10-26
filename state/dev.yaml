@@ -1,0 +1,5 @@
+artifact:
+  version: 1.0.0
+  repo: https://test-repo-location/snapshot
+environment:
+  deploy_target: s3://dev-bucket
