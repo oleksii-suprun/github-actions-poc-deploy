@@ -10,22 +10,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Check which environment files have changed
         id: set_env
         run: |
           changed_envs=""
-          if git diff --name-only HEAD^ HEAD | grep -q "state/dev.yaml"; then
+          if git diff --name-only @~..@ | grep "state/dev.yaml"; then
               changed_envs="dev,$changed_envs"
           fi
-          if git diff --name-only HEAD^ HEAD | grep -q "state/stage.yaml"; then
+          if git diff --name-only @~..@ | grep "state/stage.yaml"; then
               changed_envs="stage,$changed_envs"
           fi
-          if git diff --name-only HEAD^ HEAD | grep -q "state/prod.yaml"; then
+          if git diff --name-only @~..@ | grep "state/prod.yaml"; then
               changed_envs="prod,$changed_envs"
           fi
+
+          changed_envs=$(sed 's/,$//' <<< $changed_envs)
           echo "Changed environments: [$changed_envs"]
-          echo "env_list=$(echo $changed_envs | jq -c 'split(" ")')" >> "$GITHUB_OUTPUT"
+          echo "env_list=$(echo "\"$changed_envs\"" | jq -c 'split(",")')" >> "$GITHUB_OUTPUT"
 
   deploy:
     runs-on: ubuntu-latest
