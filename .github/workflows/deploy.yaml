@@ -25,4 +25,4 @@ jobs:
               changed_envs="prod $changed_envs"
           fi
           echo "Changed environments: $changed_envs"
-          echo "::set-output name=env_list::$changed_envs"
+          echo "env_list=$changed_envs" >> "$GITHUB_OUTPUT"
