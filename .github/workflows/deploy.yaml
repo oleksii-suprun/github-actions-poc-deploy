@@ -17,6 +17,7 @@ on:
 
 jobs:
   detect_changes:
+    name: 🔎 Detect changes
     runs-on: ubuntu-latest
     outputs:
       changed_envs: ${{ steps.set_env.outputs.env_list }}
@@ -122,8 +123,14 @@ jobs:
         with:
           repository: oleksii-suprun/github-actions-poc
           token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
-          ref: v${{ env.ARTIFACT_VERSION }}
+          ref: v$ARTIFACT_VERSION
           fetch-tags: true
           sparse-checkout: |
             schema
             infra
+
+      - name: 🔄️ Apply infra changes
+        run: echo "Deploying infra changes - $(cat infra/infra.txt)"
+
+      - name: 🔄️ Apply schema changes
+        run: echo "Deploying infra changes - $(cat schema/schema.txt)"
