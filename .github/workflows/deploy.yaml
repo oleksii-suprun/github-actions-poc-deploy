@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed_envs: ${{ steps.set_env.outputs.env_list }}
+      external_dispatch: ${{ steps.set_env.outputs.external_dispatch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,6 +36,7 @@ jobs:
 
           if [[ -n "${{ github.event.client_payload.target_verison }}" || -n "${{ github.event.inputs.target_version }}" ]]; then
             external_dispatch="true"
+            echo "external_dispatch=true" >> "$GITHUB_OUTPUT"
           fi
 
           if [[ -n $external_dispatch || -n "$(git diff --name-only @~..@ | grep 'state/dev.yaml')" ]]; then
@@ -54,6 +56,7 @@ jobs:
           echo "env_list=$(echo "\"$changed_envs\"" | jq -c 'split(",")')" >> "$GITHUB_OUTPUT"
 
   deploy:
+    name: 🚀 Deploy
     runs-on: ubuntu-latest
     needs: detect_changes
     if: ${{ needs.detect_changes.outputs.changed_envs != '[]' && needs.detect_changes.outputs.changed_envs != '' }}
@@ -72,7 +75,7 @@ jobs:
         if: ${{ github.event.inputs.target_version }}
         run: yq e -i '.artifact.version = "${{ github.event.inputs.target_version }}"' state/dev.yaml
 
-      - name: 🎛️ Set Env Vars
+      - name: 🎛️ Configure vars
         id: vars
         run: |
           ENV_FILE="state/${{ matrix.environment }}.yaml"
@@ -80,11 +83,11 @@ jobs:
           echo "artifact_repo=$(yq e '.artifact.repo' $ENV_FILE)" >> "$GITHUB_OUTPUT"
           echo "deploy_target=$(yq e '.environment.deploy_target' $ENV_FILE)" >> "$GITHUB_OUTPUT"
 
-      - name: ✅ Check Version
+      - name: ✅ Check version
         uses: actions/github-script@v7
         with:
           script: |
-            if (!steps.vars.outputs.artifact_version) {
+            if (! "${{ steps.vars.outputs.artifact_version }}") {
               core.setFailed("Version cannot be empty!");
             }
 
@@ -108,18 +111,19 @@ jobs:
         run: |
           echo "Deploying version `${{ steps.vars.outputs.artifact_version }}` to `${{ matrix.environment }}` environment"
 
-      - name: ⬇️ Checkout main
-        if: ${{ matrix.environment }} == 'dev'
+      - name: ⬇️ Checkout develop
+        if: matrix.environment == 'dev' && !needs.detect_changes.outputs.external_dispatch
         uses: actions/checkout@v4
         with:
           repository: oleksii-suprun/github-actions-poc
           token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
+          ref: develop
           sparse-checkout: |
             schema
             infra
 
       - name: ⬇️ Checkout tag
-        if: ${{ matrix.environment }} != 'dev'
+        if: matrix.environment != 'dev' || needs.detect_changes.outputs.external_dispatch
         uses: actions/checkout@v4
         with:
           repository: oleksii-suprun/github-actions-poc
@@ -130,8 +134,8 @@ jobs:
             schema
             infra
 
-      - name: 🔄️ Apply infra changes
+      - name: 🚀 Deploy infra changes
         run: echo "Deploying infra changes - $(cat infra/infra.txt)"
 
-      - name: 🔄️ Apply schema changes
+      - name: 🚀 Deploy schema changes
         run: echo "Deploying infra changes - $(cat schema/schema.txt)"
