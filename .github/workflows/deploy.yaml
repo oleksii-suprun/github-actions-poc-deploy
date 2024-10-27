@@ -54,6 +54,7 @@ jobs:
           echo "env_list=$(echo "\"$changed_envs\"" | jq -c 'split(",")')" >> "$GITHUB_OUTPUT"
 
   deploy:
+    name: 🚀 Deploy environment
     runs-on: ubuntu-latest
     needs: detect_changes
     if: ${{ needs.detect_changes.outputs.changed_envs != '[]' && needs.detect_changes.outputs.changed_envs != '' }}
@@ -84,7 +85,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            if (!steps.vars.outputs.artifact_version) {
+            if (! "${{ steps.vars.outputs.artifact_version }}") {
               core.setFailed("Version cannot be empty!");
             }
 
@@ -108,18 +109,19 @@ jobs:
         run: |
           echo "Deploying version `${{ steps.vars.outputs.artifact_version }}` to `${{ matrix.environment }}` environment"
 
-      - name: ⬇️ Checkout main
-        if: ${{ matrix.environment }} == 'dev'
+      - name: ⬇️ Checkout develop
+        if: matrix.environment == 'dev'
         uses: actions/checkout@v4
         with:
           repository: oleksii-suprun/github-actions-poc
           token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
+          ref: develop
           sparse-checkout: |
             schema
             infra
 
       - name: ⬇️ Checkout tag
-        if: ${{ matrix.environment }} != 'dev'
+        if: matrix.environment != 'dev'
         uses: actions/checkout@v4
         with:
           repository: oleksii-suprun/github-actions-poc
