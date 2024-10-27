@@ -74,7 +74,6 @@ jobs:
       - name: 🎛️ Set Env Vars
         run: |
           ENV_FILE="state/${{ matrix.environment }}.yaml"
-
           echo "ARTIFACT_VERSION=$(yq e '.artifact.version' $ENV_FILE)" >> $GITHUB_ENV
           echo "ARTIFACT_REPO=$(yq e '.artifact.repo' $ENV_FILE)" >> $GITHUB_ENV
           echo "DEPLOY_TARGET=$(yq e '.environment.deploy_target' $ENV_FILE)" >> $GITHUB_ENV
@@ -87,5 +86,44 @@ jobs:
               core.setFailed("Version cannot be empty!");
             }
 
-      - name: 🚀 Deploy
-        run: echo "Deploying version $ARTIFACT_VERSION to ${{ matrix.environment }} environment"
+      - name: ⚙️ Configure JFrog CLI
+        run: echo "Configuring JFrog"
+        # uses: jfrog/setup-jfrog-cli@v4
+
+      - name: ⏬ Get artifact
+        run: |
+          echo "Getting artifact with version `$ARTIFACT_VERSION` from repository"
+
+      - name: ⚙️ Configure AWS Credentials
+        run: echo "Configuring AWS"
+        # uses: aws-actions/configure-aws-credentials@v4
+        # with:
+        #   aws-region: ''
+        #   role-to-assume: ''
+        #   role-session-name: GitHubActions
+
+      - name: 🚀 Deploy artifact
+        run: |
+          echo "Deploying version `$ARTIFACT_VERSION` to `${{ matrix.environment }}` environment"
+
+      - name: ⬇️ Checkout main
+        if: ${{ matrix.environment }} == 'dev'
+        uses: actions/checkout@v4
+        with:
+          repository: oleksii-suprun/github-actions-poc
+          token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
+          sparse-checkout: |
+            schema
+            infra
+
+      - name: ⬇️ Checkout tag
+        if: ${{ matrix.environment }} != 'dev'
+        uses: actions/checkout@v4
+        with:
+          repository: oleksii-suprun/github-actions-poc
+          token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
+          ref: v$ARTIFACT_VERSION
+          fetch-tags: true
+          sparse-checkout: |
+            schema
+            infra

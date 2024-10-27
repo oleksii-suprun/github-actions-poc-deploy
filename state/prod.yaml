@@ -1,5 +1,5 @@
 artifact:
-  version: 1.0.4
+  version: 1.0.5
   repo: https://test-repo-location/release
 environment:
   deploy_target: s3://prod-bucket
