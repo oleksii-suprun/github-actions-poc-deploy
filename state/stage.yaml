@@ -1,5 +1,5 @@
 artifact:
-  version: 2.0.0-rc.1
+  version: 2.0.0-rc.4
   repo: https://test-repo-location/release
 environment:
   deploy_target: s3://stage-bucket
