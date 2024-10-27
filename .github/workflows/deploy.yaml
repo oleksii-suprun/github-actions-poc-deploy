@@ -17,6 +17,7 @@ on:
 
 jobs:
   detect_changes:
+    name: 🔎 Detect changes
     runs-on: ubuntu-latest
     outputs:
       changed_envs: ${{ steps.set_env.outputs.env_list }}
@@ -72,17 +73,18 @@ jobs:
         run: yq e -i '.artifact.version = "${{ github.event.inputs.target_version }}"' state/dev.yaml
 
       - name: 🎛️ Set Env Vars
+        id: vars
         run: |
           ENV_FILE="state/${{ matrix.environment }}.yaml"
-          echo "ARTIFACT_VERSION=$(yq e '.artifact.version' $ENV_FILE)" >> $GITHUB_ENV
-          echo "ARTIFACT_REPO=$(yq e '.artifact.repo' $ENV_FILE)" >> $GITHUB_ENV
-          echo "DEPLOY_TARGET=$(yq e '.environment.deploy_target' $ENV_FILE)" >> $GITHUB_ENV
+          echo "artifact_version=$(yq e '.artifact.version' $ENV_FILE)" >> "$GITHUB_OUTPUT"
+          echo "artifact_repo=$(yq e '.artifact.repo' $ENV_FILE)" >> "$GITHUB_OUTPUT"
+          echo "deploy_target=$(yq e '.environment.deploy_target' $ENV_FILE)" >> "$GITHUB_OUTPUT"
 
       - name: ✅ Check Version
         uses: actions/github-script@v7
         with:
           script: |
-            if (!process.env.ARTIFACT_VERSION) {
+            if (!steps.vars.outputs.artifact_version) {
               core.setFailed("Version cannot be empty!");
             }
 
@@ -92,7 +94,7 @@ jobs:
 
       - name: ⏬ Get artifact
         run: |
-          echo "Getting artifact with version `$ARTIFACT_VERSION` from repository"
+          echo "Getting artifact with version `${{ steps.vars.outputs.artifact_version }}` from repository"
 
       - name: ⚙️ Configure AWS Credentials
         run: echo "Configuring AWS"
@@ -104,7 +106,7 @@ jobs:
 
       - name: 🚀 Deploy artifact
         run: |
-          echo "Deploying version `$ARTIFACT_VERSION` to `${{ matrix.environment }}` environment"
+          echo "Deploying version `${{ steps.vars.outputs.artifact_version }}` to `${{ matrix.environment }}` environment"
 
       - name: ⬇️ Checkout main
         if: ${{ matrix.environment }} == 'dev'
@@ -122,8 +124,14 @@ jobs:
         with:
           repository: oleksii-suprun/github-actions-poc
           token: ${{ secrets.DEPLOY_REPO_ACTIONS_PAT }}
-          ref: v${{ env.ARTIFACT_VERSION }}
+          ref: v${{ steps.vars.outputs.artifact_version }}
           fetch-tags: true
           sparse-checkout: |
             schema
             infra
+
+      - name: 🔄️ Apply infra changes
+        run: echo "Deploying infra changes - $(cat infra/infra.txt)"
+
+      - name: 🔄️ Apply schema changes
+        run: echo "Deploying infra changes - $(cat schema/schema.txt)"
